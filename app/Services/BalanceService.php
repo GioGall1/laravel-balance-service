@@ -2,7 +2,9 @@
 
 namespace App\Services;
 
+use App\DTO\DepositDTO;
 use App\Models\Balance;
+use App\Models\Transaction;
 use App\Models\User;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
@@ -19,4 +21,31 @@ class BalanceService
         return (float) ($user->balance?->balance ?? 0.0);
     }
 
+    public function deposit(DepositDTO $dto): float
+    {
+        $user = User::find($dto->userId);
+        if (!$user) {
+            throw new ModelNotFoundException('Пользователь не найден');
+        }
+
+        return DB::transaction(function () use ($user, $dto) {
+            $balance = Balance::where('user_id', $user->id)->lockForUpdate()->first();
+            if (!$balance) {
+                $balance = Balance::create(['user_id' => $user->id, 'balance' => 0]);
+            }
+
+            $balance->balance = (float)$balance->balance + $dto->amount;
+            $balance->save();
+
+            Transaction::create([
+                'user_id'        => $user->id,
+                'type'           => Transaction::TYPE_DEPOSIT,
+                'amount'         => $dto->amount,
+                'comment'        => $dto->comment,
+                'related_user_id'=> null,
+            ]);
+
+            return (float)$balance->balance;
+        });
+    }
 }
