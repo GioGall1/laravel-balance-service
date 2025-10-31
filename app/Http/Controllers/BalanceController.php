@@ -21,4 +21,14 @@ class BalanceController extends Controller
         ], 200);
     }
 
+     /** Начисление средств */
+    public function deposit(DepositRequest $request): JsonResponse
+    {
+        $newBalance = $this->balanceService->deposit($request->toDTO());
+
+        return response()->json([
+            'user_id' => (int)$request->input('user_id'),
+            'balance' => $newBalance,
+        ], 200);
+    }
 }
